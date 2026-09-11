@@ -10,3 +10,4 @@ pandas
 numpy 
 flask
 standard-imghdr
+gunicorn
