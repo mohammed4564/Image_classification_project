@@ -1,3 +1,9 @@
+import os
+
+# Disable GPU/CUDA before TensorFlow is imported anywhere
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
+
 from flask import Flask
 
 from routes.image_routes import image_bp
@@ -25,8 +31,10 @@ app.register_blueprint(
 
 if __name__ == "__main__":
 
+    port = int(os.environ.get("PORT", 5000))
+
     app.run(
-        debug=True,
+        debug=False,
         host="0.0.0.0",
-        port=5000
+        port=port
     )
