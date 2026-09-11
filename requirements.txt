@@ -1,0 +1,12 @@
+
+tensorflow
+numpy
+matplotlib
+scikit-learn
+pillow
+jupyter
+ipykernel
+pandas
+numpy 
+flask
+standard-imghdr

@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fruit &amp; Vegetable Classifier</title>
+
+<!-- favicon: emoji as SVG -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥕</text></svg>">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+    /* ==========================================
+       DESIGN TOKENS — LIGHT
+    ========================================== */
+    :root {
+        --text:        #0f172a;
+        --text-2:      #1e293b;
+        --muted:       #64748b;
+        --faint:       #94a3b8;
+        --border:      #e5e9f2;
+        --border-2:    #e0e7ff;
+        --card:        rgba(255, 255, 255, .82);
+        --card-solid:  #ffffff;
+        --input-bg:    linear-gradient(180deg, #fcfdff, #f5f7ff);
+        --input-bg-h:  linear-gradient(180deg, #f7f8ff, #eef2ff);
+        --accent:      #4f46e5;
+        --accent-2:    #8b5cf6;
+        --accent-soft: #eef2ff;
+        --ring-track:  #e8ecf6;
+        --danger:      #ef4444;
+        --danger-soft: #fef2f2;
+        --danger-brd:  #fecaca;
+        --success:     #10b981;
+        --page-bg:
+            radial-gradient(1000px 620px at 8% -12%, #dbeafe 0%, transparent 55%),
+            radial-gradient(900px 620px at 108% 6%,  #ede9fe 0%, transparent 55%),
+            radial-gradient(900px 720px at 50% 125%, #dcfce7 0%, transparent 62%),
+            #f5f7fc;
+        --radius-lg:   28px;
+        --radius-md:   18px;
+        --radius-sm:   12px;
+        --shadow:      0 30px 70px -25px rgba(30, 41, 59, .40);
+    }
+
+    /* ==========================================
+       DESIGN TOKENS — DARK
+    ========================================== */
+    [data-theme="dark"] {
+        --text:        #e8edf7;
+        --text-2:      #f1f5f9;
+        --muted:       #94a3b8;
+        --faint:       #64748b;
+        --border:      #1e293b;
+        --border-2:    #312e81;
+        --card:        rgba(15, 23, 42, .72);
+        --card-solid:  #0f172a;
+        --input-bg:    linear-gradient(180deg, #111c33, #0d1526);
+        --input-bg-h:  linear-gradient(180deg, #16213f, #131c36);
+        --accent:      #818cf8;
+        --accent-2:    #a78bfa;
+        --accent-soft: #1e1b4b;
+        --ring-track:  #1e293b;
+        --danger-soft: #3b1215;
+        --danger-brd:  #7f1d1d;
+        --page-bg:
+            radial-gradient(1000px 620px at 8% -12%, #1e1b4b 0%, transparent 55%),
+            radial-gradient(900px 620px at 108% 6%,  #312e81 0%, transparent 55%),
+            radial-gradient(900px 720px at 50% 125%, #064e3b 0%, transparent 62%),
+            #060b18;
+        --shadow:      0 30px 70px -25px rgba(0, 0, 0, .85);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { -webkit-text-size-adjust: 100%; }
+
+    body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system,
+                     'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        color: var(--text);
+        background: var(--page-bg);
+        background-attachment: fixed;
+        -webkit-font-smoothing: antialiased;
+        transition: color .3s, background .3s;
+    }
+
+    /* ==========================================
+       CARD
+    ========================================== */
+    .card {
+        position: relative;
+        width: 100%;
+        max-width: 720px;
+        padding: 42px;
+        border-radius: var(--radius-lg);
+        background: var(--card);
+        backdrop-filter: blur(20px) saturate(150%);
+        -webkit-backdrop-filter: blur(20px) saturate(150%);
+        border: 1px solid rgba(255, 255, 255, .10);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        animation: cardIn .6s cubic-bezier(.22, 1, .36, 1) both;
+        transition: background .3s, border-color .3s;
+    }
+
+    @keyframes cardIn {
+        from { opacity: 0; transform: translateY(18px) scale(.985); }
+    }
+
+    .card::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 6px;
+        background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899, #f59e0b);
+        background-size: 300% 100%;
+        animation: slide 8s linear infinite;
+    }
+
+    @keyframes slide {
+        to { background-position: 300% 0; }
+    }
+
+    /* ==========================================
+       THEME TOGGLE
+    ========================================== */
+    .theme-toggle {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        width: 42px;
+        height: 42px;
+        display: grid;
+        place-items: center;
+        font-size: 18px;
+        cursor: pointer;
+        border-radius: 12px;
+        background: var(--card-solid);
+        border: 1px solid var(--border);
+        box-shadow: 0 6px 16px -8px rgba(15, 23, 42, .3);
+        transition: transform .2s, box-shadow .2s, background .3s, border-color .3s;
+        z-index: 2;
+    }
+
+    .theme-toggle:hover {
+        transform: translateY(-2px) rotate(12deg);
+        box-shadow: 0 10px 22px -10px rgba(79, 70, 229, .5);
+    }
+
+    .theme-toggle .icon-sun  { display: none; }
+    .theme-toggle .icon-moon { display: block; }
+    [data-theme="dark"] .theme-toggle .icon-sun  { display: block; }
+    [data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+
+    /* ==========================================
+       HEADER
+    ========================================== */
+    .header { text-align: center; margin-bottom: 30px; }
+
+    .logo {
+        width: 74px;
+        height: 74px;
+        margin: 0 auto 16px;
+        display: grid;
+        place-items: center;
+        font-size: 36px;
+        border-radius: 24px;
+        background: linear-gradient(140deg, var(--accent-soft), #fae8ff);
+        border: 1px solid var(--border-2);
+        box-shadow: 0 12px 28px -12px rgba(99, 102, 241, .55);
+        animation: float 4s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        50% { transform: translateY(-6px); }
+    }
+
+    h1 {
+        margin: 0;
+        font-size: clamp(24px, 4.4vw, 32px);
+        font-weight: 800;
+        letter-spacing: -.6px;
+        line-height: 1.2;
+        background: linear-gradient(100deg, var(--text-2), var(--accent) 60%, var(--accent-2));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+    .subtitle {
+        margin: 10px 0 0;
+        font-size: 15px;
+        color: var(--muted);
+        line-height: 1.55;
+    }
+
+    /* ==========================================
+       DROPZONE
+    ========================================== */
+    .dropzone {
+        display: block;
+        position: relative;
+        padding: 36px 24px;
+        text-align: center;
+        cursor: pointer;
+        border: 2px dashed var(--border-2);
+        border-radius: var(--radius-md);
+        background: var(--input-bg);
+        transition: border-color .25s, background .25s,
+                    transform .25s, box-shadow .25s;
+    }
+
+    .dropzone:hover,
+    .dropzone.dragover {
+        border-color: var(--accent);
+        background: var(--input-bg-h);
+        transform: translateY(-2px);
+        box-shadow: 0 18px 38px -22px rgba(79, 70, 229, .75);
+    }
+
+    .dropzone.dragover { border-style: solid; }
+
+    .dz-icon {
+        font-size: 42px;
+        line-height: 1;
+        margin-bottom: 12px;
+        display: block;
+        transition: transform .25s;
+    }
+
+    .dropzone:hover .dz-icon { transform: scale(1.12) rotate(-4deg); }
+
+    .dz-title {
+        font-size: 16px;
+        font-weight: 700;
+        margin: 0 0 6px;
+    }
+
+    .dz-hint {
+        font-size: 13.5px;
+        color: var(--muted);
+        margin: 0;
+        line-height: 1.6;
+    }
+
+    .dz-browse {
+        color: var(--accent);
+        font-weight: 700;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+
+    .dz-formats {
+        display: inline-block;
+        margin-top: 14px;
+        padding: 5px 12px;
+        font-size: 11.5px;
+        font-weight: 700;
+        letter-spacing: .6px;
+        color: var(--accent);
+        background: var(--card-solid);
+        border: 1px solid var(--border-2);
+        border-radius: 999px;
+    }
+
+    input[type="file"] {
+        position: absolute;
+        width: 1px; height: 1px;
+        padding: 0; margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    /* ==========================================
+       FILE PREVIEW
+    ========================================== */
+    .preview {
+        display: none;
+        align-items: center;
+        gap: 14px;
+        margin-top: 16px;
+        padding: 12px 14px;
+        border-radius: var(--radius-sm);
+        background: var(--card-solid);
+        border: 1px solid var(--border);
+        box-shadow: 0 8px 20px -14px rgba(15, 23, 42, .35);
+        text-align: left;
+        animation: cardIn .35s ease both;
+    }
+
+    .preview.show { display: flex; }
+
+    .preview img {
+        width: 52px;
+        height: 52px;
+        flex: 0 0 52px;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--input-bg);
+    }
+
+    .preview-meta { min-width: 0; flex: 1; }
+
+    .preview-name {
+        font-size: 13.5px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .preview-size {
+        font-size: 12px;
+        color: var(--faint);
+        margin-top: 2px;
+    }
+
+    .preview-check {
+        font-size: 18px;
+        color: var(--success);
+        flex: 0 0 auto;
+    }
+
+    /* ==========================================
+       BUTTONS
+    ========================================== */
+    .btn {
+        position: relative;
+        width: 100%;
+        margin-top: 20px;
+        padding: 16px 22px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        font-family: inherit;
+        font-size: 16px;
+        font-weight: 700;
+        color: #fff;
+        border: none;
+        border-radius: 14px;
+        cursor: pointer;
+        background: linear-gradient(120deg, #4f46e5, #7c3aed 55%, #a855f7);
+        background-size: 200% 100%;
+        box-shadow: 0 16px 32px -14px rgba(79, 70, 229, .85);
+        transition: transform .2s, box-shadow .2s, background-position .5s;
+    }
+
+    .btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        background-position: 100% 0;
+        box-shadow: 0 22px 40px -16px rgba(79, 70, 229, .95);
+    }
+
+    .btn:active:not(:disabled) { transform: translateY(0) scale(.99); }
+
+    .btn:disabled {
+        cursor: progress;
+        opacity: .85;
+        transform: none;
+    }
+
+    .btn .spinner {
+        display: none;
+        width: 18px;
+        height: 18px;
+        border: 2.5px solid rgba(255, 255, 255, .35);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin .7s linear infinite;
+    }
+
+    .btn.loading .spinner { display: block; }
+    .btn.loading .btn-icon { display: none; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .btn-ghost {
+        background: var(--card-solid);
+        color: var(--accent);
+        border: 1.5px solid var(--border-2);
+        box-shadow: none;
+        margin-top: 12px;
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+        background: var(--accent-soft);
+        box-shadow: 0 12px 24px -16px rgba(79, 70, 229, .6);
+        transform: translateY(-1px);
+    }
+
+    .btn-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .btn-row .btn { margin-top: 0; }
+
+    /* ==========================================
+       ALERTS
+    ========================================== */
+    .alert {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-top: 20px;
+        padding: 14px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.5;
+        border-radius: var(--radius-sm);
+        background: var(--danger-soft);
+        border: 1px solid var(--danger-brd);
+        color: #ef4444;
+        animation: cardIn .35s ease both;
+    }
+
+    [data-theme="dark"] .alert { color: #fca5a5; }
+
+    .alert span:first-child { font-size: 16px; line-height: 1.35; }
+
+    /* ==========================================
+       RESULT
+    ========================================== */
+    .result {
+        margin-top: 30px;
+        padding: 26px;
+        border-radius: var(--radius-md);
+        background: var(--input-bg);
+        border: 1px solid var(--border);
+        box-shadow: 0 20px 44px -30px rgba(15, 23, 42, .7);
+        animation: cardIn .5s cubic-bezier(.22, 1, .36, 1) both;
+    }
+
+    .result-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 11.5px;
+        font-weight: 800;
+        letter-spacing: 1.1px;
+        text-transform: uppercase;
+        color: var(--accent);
+        background: var(--accent-soft);
+        border: 1px solid var(--border-2);
+        padding: 6px 12px;
+        border-radius: 999px;
+    }
+
+    .result-grid {
+        display: grid;
+        grid-template-columns: 1.05fr .95fr;
+        gap: 24px;
+        align-items: center;
+        margin-top: 20px;
+    }
+
+    .result-image {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
+        background: var(--input-bg);
+        box-shadow: 0 14px 30px -20px rgba(15, 23, 42, .8);
+    }
+
+    .result-info { text-align: center; }
+
+    .prediction-label {
+        font-size: 12.5px;
+        font-weight: 700;
+        letter-spacing: .8px;
+        text-transform: uppercase;
+        color: var(--faint);
+    }
+
+    .prediction {
+        margin: 6px 0 18px;
+        font-size: clamp(24px, 5vw, 32px);
+        font-weight: 800;
+        letter-spacing: -.8px;
+        line-height: 1.15;
+        text-transform: capitalize;
+        color: var(--text-2);
+        word-break: break-word;
+    }
+
+    /* ---- confidence ring ---- */
+    .ring-wrap {
+        position: relative;
+        width: 150px;
+        height: 150px;
+        margin: 0 auto;
+    }
+
+    .ring {
+        width: 100%;
+        height: 100%;
+        transform: rotate(-90deg);
+    }
+
+    .ring-track {
+        fill: none;
+        stroke: var(--ring-track);
+        stroke-width: 11;
+    }
+
+    .ring-value {
+        fill: none;
+        stroke: url(#ringGrad);
+        stroke-width: 11;
+        stroke-linecap: round;
+        stroke-dasharray: var(--dash) 1000;
+        animation: dashIn 1.2s cubic-bezier(.4, 0, .2, 1) both;
+    }
+
+    @keyframes dashIn {
+        from { stroke-dasharray: 0 1000; }
+    }
+
+    .ring-center {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+    }
+
+    .ring-pct {
+        font-size: 26px;
+        font-weight: 800;
+        letter-spacing: -.6px;
+        color: var(--text-2);
+    }
+
+    .ring-cap {
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--faint);
+    }
+
+    /* ---- top-k list ---- */
+    .topk {
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px dashed var(--border);
+    }
+
+    .topk-title {
+        font-size: 11.5px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--faint);
+        margin: 0 0 12px;
+    }
+
+    .topk-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 10px;
+    }
+
+    .topk-row:last-child { margin-bottom: 0; }
+
+    .topk-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13.5px;
+        font-weight: 700;
+        color: var(--text);
+        text-transform: capitalize;
+    }
+
+    .topk-rank {
+        display: inline-grid;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        font-size: 11px;
+        font-weight: 800;
+        color: var(--accent);
+        background: var(--accent-soft);
+        border: 1px solid var(--border-2);
+        border-radius: 7px;
+    }
+
+    .topk-bar {
+        grid-column: 1 / -1;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--ring-track);
+        overflow: hidden;
+    }
+
+    .topk-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+        transform-origin: left;
+        animation: grow 1s cubic-bezier(.4, 0, .2, 1) both;
+    }
+
+    @keyframes grow {
+        from { transform: scaleX(0); }
+    }
+
+    .topk-pct {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--accent);
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* ==========================================
+       FOOTER
+    ========================================== */
+    .footer {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+        text-align: center;
+        font-size: 12.5px;
+        color: var(--faint);
+    }
+
+    .footer strong { color: var(--muted); font-weight: 700; }
+
+    /* ==========================================
+       RESPONSIVE
+    ========================================== */
+    @media (max-width: 620px) {
+        body { padding: 22px 14px; }
+
+        .card { padding: 28px 20px; border-radius: 24px; }
+
+        .result-grid {
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .result-image {
+            max-width: 260px;
+            margin: 0 auto;
+        }
+
+        .dropzone { padding: 28px 18px; }
+
+        .theme-toggle {
+            top: 14px;
+            right: 14px;
+            width: 38px;
+            height: 38px;
+        }
+
+        .btn-row { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+            animation-duration: .001ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: .001ms !important;
+        }
+    }
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+    <!-- ==========================================
+         THEME TOGGLE
+    =========================================== -->
+    <button
+        type="button"
+        class="theme-toggle"
+        id="themeToggle"
+        aria-label="Toggle dark mode"
+        title="Toggle dark mode"
+    >
+        <span class="icon-moon">🌙</span>
+        <span class="icon-sun">☀️</span>
+    </button>
+
+
+    <!-- ==========================================
+         HEADER
+    =========================================== -->
+    <header class="header">
+        <div class="logo">🥕</div>
+        <h1>Fruit &amp; Vegetable Classifier</h1>
+        <p class="subtitle">
+            Upload a photo and let the AI identify it in seconds.
+        </p>
+    </header>
+
+
+    <!-- ==========================================
+         UPLOAD FORM
+    =========================================== -->
+    <form
+        id="uploadForm"
+        action="/predict"
+        method="POST"
+        enctype="multipart/form-data"
+    >
+
+        <label class="dropzone" id="dropzone" for="imageInput">
+            <span class="dz-icon">📷</span>
+            <p class="dz-title">Drop your image here</p>
+            <p class="dz-hint">
+                or <span class="dz-browse">browse your files</span>
+            </p>
+            <span class="dz-formats">JPG · JPEG · PNG · max 8 MB</span>
+
+            <input
+                type="file"
+                id="imageInput"
+                name="image"
+                accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                required
+            >
+        </label>
+
+        <!-- client-side validation alert -->
+        <div class="alert" id="clientError" style="display:none;">
+            <span>⚠️</span>
+            <span id="clientErrorText">Something went wrong.</span>
+        </div>
+
+        <!-- preview of the chosen file -->
+        <div class="preview" id="previewBox">
+            <img id="previewImg" src="" alt="Selected preview">
+            <div class="preview-meta">
+                <div class="preview-name" id="fileName">—</div>
+                <div class="preview-size" id="fileSize">—</div>
+            </div>
+            <span class="preview-check">✓</span>
+        </div>
+
+        <div class="btn-row">
+            <button type="submit" class="btn" id="submitBtn">
+                <span class="spinner"></span>
+                <span class="btn-icon">🔍</span>
+                <span class="btn-text">Predict Image</span>
+            </button>
+
+            <button type="button" class="btn btn-ghost" id="resetBtn">
+                <span>↺</span>
+                <span>Reset</span>
+            </button>
+        </div>
+
+    </form>
+
+
+    <!-- ==========================================
+         SERVER-SIDE ERROR
+    =========================================== -->
+    {% if error %}
+        <div class="alert">
+            <span>⚠️</span>
+            <span>{{ error }}</span>
+        </div>
+    {% endif %}
+
+
+    <!-- ==========================================
+         RESULT
+    =========================================== -->
+    {% if prediction %}
+
+        {% set dash = 326.73 * accuracy / 100 %}
+
+        <section class="result" aria-live="polite">
+
+            <span class="result-eyebrow">🎯 Prediction Result</span>
+
+            <div class="result-grid">
+
+                {% if image_url %}
+                    <img
+                        src="{{ image_url }}"
+                        alt="Uploaded image"
+                        class="result-image"
+                    >
+                {% endif %}
+
+                <div class="result-info">
+
+                    <div class="prediction-label">Identified as</div>
+                    <div class="prediction">{{ prediction }}</div>
+
+                    <div class="ring-wrap">
+
+                        <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+                            <defs>
+                                <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                                    <stop offset="0%"   stop-color="#6366f1"/>
+                                    <stop offset="100%" stop-color="#a855f7"/>
+                                </linearGradient>
+                            </defs>
+
+                            <circle class="ring-track" cx="60" cy="60" r="52"></circle>
+
+                            <circle
+                                class="ring-value"
+                                cx="60" cy="60" r="52"
+                                style="--dash: {{ '%.2f'|format(dash) }}"
+                            ></circle>
+                        </svg>
+
+                        <div class="ring-center">
+                            <div class="ring-pct">
+                                {{ "%.2f"|format(accuracy) }}%
+                            </div>
+                            <div class="ring-cap">Confidence</div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ==========================================
+                 TOP-K PREDICTIONS
+                 (requires top_k passed from Flask)
+            =========================================== -->
+            {% if top_k and top_k|length > 1 %}
+
+                <div class="topk">
+
+                    <p class="topk-title">Other possibilities</p>
+
+                    {% for item in top_k %}
+                        {% if not loop.first %}
+                            <div class="topk-row">
+
+                                <div class="topk-label">
+                                    <span class="topk-rank">{{ loop.index }}</span>
+                                    {{ item.label }}
+                                </div>
+
+                                <div class="topk-pct">
+                                    {{ "%.1f"|format(item.score) }}%
+                                </div>
+
+                                <div class="topk-bar">
+                                    <div
+                                        class="topk-fill"
+                                        style="width: {{ item.score }}%;
+                                               animation-delay: {{ loop.index0 * 0.1 }}s;"
+                                    ></div>
+                                </div>
+
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+
+                </div>
+
+            {% endif %}
+
+        </section>
+
+    {% elif image_url %}
+
+        <section class="result">
+            <span class="result-eyebrow">🖼️ Uploaded Image</span>
+            <div class="result-grid" style="grid-template-columns: 1fr;">
+                <img
+                    src="{{ image_url }}"
+                    alt="Uploaded image"
+                    class="result-image"
+                >
+            </div>
+        </section>
+
+    {% endif %}
+
+
+    <!-- ==========================================
+         FOOTER
+    =========================================== -->
+    <!-- <div class="footer">
+        Powered by <strong>TensorFlow</strong> + <strong>Flask</strong>
+    </div> -->
+
+</div>
+
+
+<script>
+    /* ==========================================
+       ELEMENTS
+    ========================================== */
+    const form        = document.getElementById('uploadForm');
+    const dropzone    = document.getElementById('dropzone');
+    const input       = document.getElementById('imageInput');
+    const previewBox  = document.getElementById('previewBox');
+    const previewImg  = document.getElementById('previewImg');
+    const fileNameEl  = document.getElementById('fileName');
+    const fileSizeEl  = document.getElementById('fileSize');
+    const submitBtn   = document.getElementById('submitBtn');
+    const btnText     = submitBtn.querySelector('.btn-text');
+    const resetBtn    = document.getElementById('resetBtn');
+    const clientError = document.getElementById('clientError');
+    const clientErrorText = document.getElementById('clientErrorText');
+    const themeToggle = document.getElementById('themeToggle');
+
+    const MAX_MB   = 8;
+    const MAX_SIZE = MAX_MB * 1024 * 1024;
+
+    /* --- PNG-safe lists --- */
+    const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png'];
+    const ALLOWED_EXTS  = ['.jpg', '.jpeg', '.png'];
+
+
+    /* ==========================================
+       THEME
+    ========================================== */
+    const savedTheme = localStorage.getItem('fv-theme');
+
+    if (savedTheme) {
+        document.documentElement.setAttribute('data-theme', savedTheme);
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+
+    themeToggle.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme');
+        const next    = current === 'dark' ? 'light' : 'dark';
+
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('fv-theme', next);
+    });
+
+
+    /* ==========================================
+       HELPERS
+    ========================================== */
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    function showClientError(msg) {
+        clientErrorText.textContent = msg;
+        clientError.style.display   = 'flex';
+    }
+
+    function hideClientError() {
+        clientError.style.display = 'none';
+    }
+
+    function resetPreview() {
+        previewBox.classList.remove('show');
+        previewImg.src = '';
+        fileNameEl.textContent = '—';
+        fileSizeEl.textContent = '—';
+    }
+
+
+    /* ==========================================
+       VALIDATE + PREVIEW  (PNG-safe)
+    ========================================== */
+    function validateFile(file) {
+        if (!file) return 'Please choose a file.';
+
+        const name = (file.name || '').toLowerCase();
+        const type = (file.type || '').toLowerCase();
+
+        // MIME type check (treat empty type as "unknown", fall through to ext)
+        const typeOk =
+            type === '' ||
+            ALLOWED_TYPES.includes(type) ||
+            type.startsWith('image/jpeg') ||
+            type.startsWith('image/png');
+
+        // extension check as a backstop
+        const extOk = ALLOWED_EXTS.some(ext => name.endsWith(ext));
+
+        if (!typeOk || !extOk) {
+            return 'Only JPG, JPEG and PNG images are allowed.';
+        }
+
+        if (file.size > MAX_SIZE) {
+            return `Image is too large (max ${MAX_MB} MB).`;
+        }
+
+        return null;
+    }
+
+    function handleFile(file) {
+        hideClientError();
+
+        const err = validateFile(file);
+
+        if (err) {
+            showClientError(err);
+            resetPreview();
+            input.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            previewImg.src        = e.target.result;
+            fileNameEl.textContent = file.name;
+            fileSizeEl.textContent = formatSize(file.size);
+            previewBox.classList.add('show');
+        };
+
+        reader.readAsDataURL(file);
+    }
+
+    input.addEventListener('change', () => {
+        handleFile(input.files[0]);
+    });
+
+
+    /* ==========================================
+       DRAG & DROP
+    ========================================== */
+    ['dragenter', 'dragover'].forEach((evt) => {
+        dropzone.addEventListener(evt, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.add('dragover');
+        });
+    });
+
+    ['dragleave', 'dragend', 'drop'].forEach((evt) => {
+        dropzone.addEventListener(evt, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('dragover');
+        });
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer && e.dataTransfer.files;
+
+        if (files && files.length) {
+            const dt = new DataTransfer();
+            dt.items.add(files[0]);
+            input.files = dt.files;
+
+            handleFile(files[0]);
+        }
+    });
+
+
+    /* ==========================================
+       SUBMIT STATE
+    ========================================== */
+    form.addEventListener('submit', (e) => {
+        const err = validateFile(input.files[0]);
+
+        if (err) {
+            e.preventDefault();
+            showClientError(err);
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.classList.add('loading');
+        btnText.textContent = 'Analyzing…';
+    });
+
+
+    /* ==========================================
+       RESET
+    ========================================== */
+    resetBtn.addEventListener('click', () => {
+        input.value = '';
+        resetPreview();
+        hideClientError();
+
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('loading');
+        btnText.textContent = 'Predict Image';
+
+        // also strip result section if we're on a result page
+        const resultEl = document.querySelector('.result');
+        if (resultEl) resultEl.remove();
+    });
+</script>
+
+</body>
+</html>
