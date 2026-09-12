@@ -2,10 +2,20 @@
 
 import os
 
+# ==========================================================
+# ENVIRONMENT CONFIGURATION
+# Must be set BEFORE importing TensorFlow
+# ==========================================================
+
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 os.environ["MPLCONFIGDIR"] = "/tmp/matplotlib"
 
+# Reduce TensorFlow CPU memory/thread usage on Render
+os.environ["TF_NUM_INTRAOP_THREADS"] = "2"
+os.environ["TF_NUM_INTEROP_THREADS"] = "2"
+
 import uuid
+
 import numpy as np
 import tensorflow as tf
 
@@ -19,7 +29,9 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 # ==========================================================
 
 BASE_DIR = os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__))
+    os.path.dirname(
+        os.path.abspath(__file__)
+    )
 )
 
 MODEL_PATH = os.path.join(
@@ -40,13 +52,44 @@ except Exception:
 
 
 # ==========================================================
+# TENSORFLOW THREAD LIMIT
+# ==========================================================
+
+try:
+    tf.config.threading.set_intra_op_parallelism_threads(2)
+    tf.config.threading.set_inter_op_parallelism_threads(2)
+except Exception:
+    pass
+
+
+# ==========================================================
 # LOAD MODEL
 # ==========================================================
 
-model = load_model(
-    MODEL_PATH,
-    compile=False
-)
+try:
+
+    if not os.path.exists(MODEL_PATH):
+
+        raise FileNotFoundError(
+            f"Model file not found: {MODEL_PATH}"
+        )
+
+    model = load_model(
+        MODEL_PATH,
+        compile=False
+    )
+
+    print(
+        f"TensorFlow model loaded successfully: {MODEL_PATH}"
+    )
+
+except Exception as e:
+
+    print(
+        f"ERROR: Failed to load TensorFlow model: {e}"
+    )
+
+    raise
 
 
 # ==========================================================
@@ -112,8 +155,15 @@ ALLOWED_FORMATS = {
 }
 
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+
 MAX_PIXELS = 25_000_000
+
 MIN_SIDE = 32
+
+
+# ==========================================================
+# UPLOAD DIRECTORY
+# ==========================================================
 
 UPLOAD_DIR = os.path.join(
     BASE_DIR,
@@ -125,6 +175,11 @@ os.makedirs(
     UPLOAD_DIR,
     exist_ok=True
 )
+
+
+# ==========================================================
+# PIL SECURITY
+# ==========================================================
 
 Image.MAX_IMAGE_PIXELS = MAX_PIXELS
 
@@ -152,12 +207,17 @@ def _safe_extension(filename: str) -> str:
 def _sniff_type(file_stream) -> str:
 
     head = file_stream.read(16)
+
     file_stream.seek(0)
 
-    if head.startswith(b"\xff\xd8\xff"):
+    if head.startswith(
+        b"\xff\xd8\xff"
+    ):
         return "jpeg"
 
-    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+    if head.startswith(
+        b"\x89PNG\r\n\x1a\n"
+    ):
         return "png"
 
     return ""
@@ -168,7 +228,9 @@ def _normalize(
     size=(224, 224)
 ):
 
-    image = ImageOps.exif_transpose(image)
+    image = ImageOps.exif_transpose(
+        image
+    )
 
     if image.mode in (
         "RGBA",
@@ -182,7 +244,9 @@ def _normalize(
             (255, 255, 255)
         )
 
-        image = image.convert("RGBA")
+        image = image.convert(
+            "RGBA"
+        )
 
         background.paste(
             image,
@@ -192,11 +256,30 @@ def _normalize(
         image = background
 
     else:
-        image = image.convert("RGB")
+
+        image = image.convert(
+            "RGB"
+        )
 
     return image.resize(
         size,
         Image.Resampling.LANCZOS
+    )
+
+
+# ==========================================================
+# ERROR RESPONSE
+# ==========================================================
+
+def _error_response(message):
+
+    return render_template(
+        "index.html",
+        prediction=None,
+        accuracy=None,
+        top_k=None,
+        image_url=None,
+        error=message
     )
 
 
@@ -224,31 +307,27 @@ def predict_image():
 
     try:
 
+        # --------------------------------------------------
+        # CHECK FILE
+        # --------------------------------------------------
+
         if "image" not in request.files:
 
-            return render_template(
-                "index.html",
-                prediction=None,
-                accuracy=None,
-                top_k=None,
-                image_url=None,
-                error="Please select an image."
+            return _error_response(
+                "Please select an image."
             )
 
-        uploaded_file = request.files["image"]
+        uploaded_file = request.files[
+            "image"
+        ]
 
         if (
             not uploaded_file
             or uploaded_file.filename == ""
         ):
 
-            return render_template(
-                "index.html",
-                prediction=None,
-                accuracy=None,
-                top_k=None,
-                image_url=None,
-                error="Please select an image."
+            return _error_response(
+                "Please select an image."
             )
 
 
@@ -262,13 +341,8 @@ def predict_image():
 
         if ext not in ALLOWED_EXTS:
 
-            return render_template(
-                "index.html",
-                prediction=None,
-                accuracy=None,
-                top_k=None,
-                image_url=None,
-                error="Only JPG, JPEG and PNG images are allowed."
+            return _error_response(
+                "Only JPG, JPEG and PNG images are allowed."
             )
 
 
@@ -287,24 +361,14 @@ def predict_image():
 
         if file_size == 0:
 
-            return render_template(
-                "index.html",
-                prediction=None,
-                accuracy=None,
-                top_k=None,
-                image_url=None,
-                error="The uploaded file is empty."
+            return _error_response(
+                "The uploaded file is empty."
             )
 
         if file_size > MAX_UPLOAD_BYTES:
 
-            return render_template(
-                "index.html",
-                prediction=None,
-                accuracy=None,
-                top_k=None,
-                image_url=None,
-                error="Image is too large (max 8 MB)."
+            return _error_response(
+                "Image is too large (max 8 MB)."
             )
 
 
@@ -321,13 +385,8 @@ def predict_image():
             "png"
         ):
 
-            return render_template(
-                "index.html",
-                prediction=None,
-                accuracy=None,
-                top_k=None,
-                image_url=None,
-                error="File is not a valid JPG or PNG image."
+            return _error_response(
+                "File is not a valid JPG or PNG image."
             )
 
 
@@ -342,6 +401,7 @@ def predict_image():
             )
 
             probe.verify()
+
             probe.close()
 
             uploaded_file.stream.seek(0)
@@ -356,13 +416,8 @@ def predict_image():
             OSError
         ):
 
-            return render_template(
-                "index.html",
-                prediction=None,
-                accuracy=None,
-                top_k=None,
-                image_url=None,
-                error="Could not read the image. It may be corrupted."
+            return _error_response(
+                "Could not read the image. It may be corrupted."
             )
 
 
@@ -374,13 +429,8 @@ def predict_image():
 
             image.close()
 
-            return render_template(
-                "index.html",
-                prediction=None,
-                accuracy=None,
-                top_k=None,
-                image_url=None,
-                error="Only JPG, JPEG and PNG images are allowed."
+            return _error_response(
+                "Only JPG, JPEG and PNG images are allowed."
             )
 
 
@@ -397,26 +447,16 @@ def predict_image():
 
             image.close()
 
-            return render_template(
-                "index.html",
-                prediction=None,
-                accuracy=None,
-                top_k=None,
-                image_url=None,
-                error="Image is too small (min 32x32)."
+            return _error_response(
+                "Image is too small (min 32x32)."
             )
 
         if width * height > MAX_PIXELS:
 
             image.close()
 
-            return render_template(
-                "index.html",
-                prediction=None,
-                accuracy=None,
-                top_k=None,
-                image_url=None,
-                error="Image dimensions are too large."
+            return _error_response(
+                "Image dimensions are too large."
             )
 
 
@@ -426,7 +466,10 @@ def predict_image():
 
         image_load = _normalize(
             image,
-            (img_width, img_height)
+            (
+                img_width,
+                img_height
+            )
         )
 
         image.close()
@@ -448,7 +491,7 @@ def predict_image():
         image_load.save(
             image_path,
             format="JPEG",
-            quality=90,
+            quality=85,
             optimize=True
         )
 
@@ -469,12 +512,27 @@ def predict_image():
 
 
         # --------------------------------------------------
-        # PREDICT
+        # RELEASE PIL IMAGE
         # --------------------------------------------------
 
-        predict = model.predict(
+        image_load.close()
+
+
+        # --------------------------------------------------
+        # PREDICTION
+        # --------------------------------------------------
+
+        print(
+            "Starting image prediction..."
+        )
+
+        predict = model(
             img_bat,
-            verbose=0
+            training=False
+        ).numpy()
+
+        print(
+            "Image prediction completed."
         )
 
 
@@ -539,6 +597,10 @@ def predict_image():
         )
 
 
+    # ======================================================
+    # ERROR HANDLING
+    # ======================================================
+
     except Exception:
 
         try:
@@ -552,11 +614,6 @@ def predict_image():
         except Exception:
             pass
 
-        return render_template(
-            "index.html",
-            prediction=None,
-            accuracy=None,
-            top_k=None,
-            image_url=None,
-            error="Something went wrong while processing the image."
+        return _error_response(
+            "Something went wrong while processing the image."
         )
