@@ -5,3 +5,4 @@ scikit-learn
 Pillow
 Flask
 gunicorn
+flask-cors

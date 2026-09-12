@@ -20,17 +20,21 @@ image_bp = Blueprint(
 # HOME
 # ==========================================================
 
-image_bp.route(
+@image_bp.route(
     "/",
     methods=["GET"]
-)(home)
+)
+def home_route():
+    return home()
 
 
 # ==========================================================
 # PREDICT IMAGE
 # ==========================================================
 
-image_bp.route(
+@image_bp.route(
     "/predict",
     methods=["POST"]
-)(predict_image)
+)
+def predict_image_route():
+    return predict_image()
